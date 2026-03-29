@@ -43,6 +43,7 @@ const H = {
   LAA: "\u0644\u0627", // لا
   TA_MARBUTHAH: "\u0629", // ة
   NUN_TANWIN: "\u0646", // ن (nun tanwin pada sebagian wazan)
+  HAMZAH_ATAS: "\u0623", // أ (hamzah di atas alif — untuk Amr dan bentuk nominal)
 } as const;
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -183,6 +184,32 @@ function buildMasdarMim(
   const pakaKasrah = bab === 2 || bab === 6 || bina === "Mitsal Wawi";
   const harakatAin: string = pakaKasrah ? H.KASRAH : H.FATHAH;
 
+  // Naqish Wawi: Masdar Mim/Zaman berakhiran Alif Maqshurah + tanwin fathah (مَدْعًى)
+  // Naqish Ya'i: sama — wazan مَفْعَل dengan Lam = ى
+  // مَدْعًى: Tanwin Fathah HARUS ditulis sebelum Alif Maqshurah (ى)
+  // Unicode: م + َ + د + ْ + ع + ً + ى
+  const isNaqish = bina?.startsWith("Naqish") || bina?.startsWith("Lafif");
+
+  if (isNaqish) {
+    return {
+      hurufZiyadahAwal: H.MIM + H.FATHAH,
+      faFiil: fa,
+      harakatFa: H.SUKUN,
+      ainFiil: ain,
+      // Kunci: tanwin fathah (ً) di harakatAin SEBELUM ى, bukan setelahnya
+      // Ini menghasilkan: عً + ى = عًى (benar: مَدْعًى)
+      harakatAin: H.TANWIN_FATHAH,  // ً (tanwin fathah)
+      lamFiil: "\u0649",              // ى – Alif Maqshurah (tanpa harakat)
+      harakatLam: "",
+    };
+  }
+
+  // Override harakatAin untuk Naqish: tambahkan tanwin fathah setelah harakat biasa
+  // Sebenarnya, anatomi standar: ain + harakatAin + lam + harakatLam
+  // Untuk مَدْعًى yang benar:
+  //   ain = ع, harakatAin = ً (tanwin fathah), lam = ى, harakatLam = ""
+  // Jadi: re-return dengan harakatAin = TANWIN_FATHAH
+
   return {
     hurufZiyadahAwal: H.MIM + H.FATHAH, // مَ (Mim + Fathah sebagai prefix)
     faFiil: fa,
@@ -218,7 +245,7 @@ function buildIsimMafuul(fa: string, ain: string, lam: string): AnatomiKata {
     harakatAin: H.DHAMMAH, // ـعُـ
 
     // GUNAKAN INI BUKAN ZiyadahAkhir:
-    hurufZiyadahSetelahAin: H.WAWU + H.SUKUN, // ـوْ (Wawu sukun tanda maf'ul)
+    hurufZiyadahSetelahAin: H.WAWU, // ـو (Wawu madd tanda maf'ul — tanpa sukun eksplisit)
 
     // Kembalikan Lam Fi'il ke tempat asalnya:
     lamFiil: lam, // ـل
@@ -231,9 +258,9 @@ function buildAmr(fa: string, ain: string, lam: string, bab: 1 | 2 | 3 | 4 | 5 |
   const { harakatAinMudhari } = BAB_HARAKAT[bab];
   const harakatHamzah = HARAKAT_HAMZAH_AMR[bab];
   return {
-    hurufZiyadahAwal: "\u0627" + harakatHamzah, // Hamzah Washal + harakatnya
+    hurufZiyadahAwal: "\u0627" + harakatHamzah, // اُ/اِ (Hamzah Washal — ditulis tanpa tanda hamzah)
     faFiil: fa,
-    harakatFa: H.SUKUN,            // Fa' sukun (karena berasal dari Mudhari' yang dibuang mudhara'ah-nya)
+    harakatFa: H.SUKUN,            // Fa' sukun
     ainFiil: ain,
     harakatAin: harakatAinMudhari, // Sama dengan harakat 'Ain Mudhari'
     lamFiil: lam,
@@ -244,8 +271,10 @@ function buildAmr(fa: string, ain: string, lam: string, bab: 1 | 2 | 3 | 4 | 5 |
 /** Fi'il Nahyi — لَا تَفْعُلْ / لَا تَفْعِلْ / لَا تَفْعَلْ sesuai bab */
 function buildNahyi(fa: string, ain: string, lam: string, bab: 1 | 2 | 3 | 4 | 5 | 6): AnatomiKata {
   const { harakatAinMudhari } = BAB_HARAKAT[bab];
+  // لَا = Lam-Fathah + Alif (tanpa harakat) + spasi + Ta' Mudhara'ah
+  // Urutan karakter: ل + َ (fathah) + ا (alif) + ' ' + ت
   return {
-    hurufZiyadahAwal: H.LAA + " " + H.TA_MUDHARAAH, // لَا تَـ
+    hurufZiyadahAwal: "\u0644\u064e\u0627 \u062a", // لَا ت (Lam+Fathah+Alif+Spasi+Ta')
     harakatMudhoroah: H.FATHAH,   // Ta' mudhara'ah Fathah
     faFiil: fa,
     harakatFa: H.SUKUN,
@@ -257,9 +286,16 @@ function buildNahyi(fa: string, ain: string, lam: string, bab: 1 | 2 | 3 | 4 | 5
 }
 
 /** Isim Zaman/Makan — مَفْعَلٌ / مَفْعِلٌ (sama dengan Masdar Mim) */
-function buildIsimZaman(fa: string, ain: string, lam: string, bab: 1 | 2 | 3 | 4 | 5 | 6): AnatomiKata {
+function buildIsimZaman(
+  fa: string,
+  ain: string,
+  lam: string,
+  bab: 1 | 2 | 3 | 4 | 5 | 6,
+  bina?: string
+): AnatomiKata {
   // Isim Zaman dan Makan ber-wazan identik dengan Masdar Mim pada Tsulatsi Mujarrad
-  return buildMasdarMim(fa, ain, lam, bab);
+  // Teruskan bina' agar Naqish mendapat Alif Maqshurah yang benar
+  return buildMasdarMim(fa, ain, lam, bab, bina);
 }
 
 /**
@@ -355,7 +391,8 @@ export function bangunAnatomi(context: WordContext): AnatomiKata {
 
     case "Isim Zaman/Makan":
       // Isim Zaman/Makan ber-wazan identik dengan Masdar Mim
-      return buildMasdarMim(fa, ain, lam, bab, bina);
+      // Teruskan bina' agar Naqish mendapat Alif Maqshurah
+      return buildIsimZaman(fa, ain, lam, bab, bina);
 
     case "Isim Alat":
       // Teruskan polaAlat agar wazan dipilih secara dinamis
@@ -429,9 +466,15 @@ export function renderAnatomiToString(anatomi: AnatomiKata): string {
   }
 
   // 7. Lam al-Fi'l + harakatnya
+  // Catatan: lamFiil bisa kosong saat Idghom (kaidah 2) — tapi harakatLam
+  // tetap harus dirender karena ia adalah harakat akhir dari huruf yang diidghom.
   if (anatomi.lamFiil) {
     bagian.push(anatomi.lamFiil);
     if (anatomi.harakatLam) bagian.push(anatomi.harakatLam);
+  } else if (!anatomi.lamFiil && anatomi.harakatLam) {
+    // Kasus Idghom: lamFiil kosong tapi harakatLam masih harus tampil
+    // (misal: مَدَّ dimana lam = '' dan harakatLam = fathah)
+    bagian.push(anatomi.harakatLam);
   }
 
   // 8. Ziyadah di akhir (misal: ةٌ pada mif'alah)
