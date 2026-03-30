@@ -1140,27 +1140,25 @@ export function prosesIlal(anatomiAwal: AnatomiKata, context: WordContext): Pros
     return {
       asalKata: renderAnatomiToString(anatomiAwal),
       hasilAkhir: renderAnatomiToString(anatomiAwal),
-      logProses: ["Tidak ada kaidah i'lal yang berlaku karena bina' Shahih Salim."],
+      logProses: [],
       bina: context.bina,
     };
   }
 
   // Clone anatomi agar tidak mengganggu data asli dari wazanBuilder
   const anatomi: AnatomiKata = { ...anatomiAwal };
-  const logProses: string[] = [];
+  const logProses: { pesan: string; hasilSementara: string }[] = [];
   const kataAwal = renderAnatomiToString(anatomiAwal);
 
   // Jalankan seluruh pipeline
   for (const kaidah of PIPELINE) {
     const hasil = kaidah(anatomi, context);
     if (hasil.diterapkan && hasil.pesan) {
-      logProses.push(hasil.pesan);
+      logProses.push({
+        pesan: hasil.pesan,
+        hasilSementara: renderAnatomiToString(anatomi),
+      });
     }
-  }
-
-  // Fallback wajib: jika tidak ada kaidah yang berlaku
-  if (logProses.length === 0) {
-    logProses.push("tidak ada kaidah i'lal yg berlaku");
   }
 
   return {
@@ -1187,28 +1185,26 @@ export function analisisIlal(
 ): ProsesIlal {
   // Pendekatan fallback: gunakan regex engine lama (string-based)
   // karena API ini tidak punya informasi bab
-  const log: string[] = [];
+  const log: { pesan: string; hasilSementara: string }[] = [];
   let hasil = kataInput;
 
   if (bina === "Shahih Salim") {
-    return { asalKata: kataInput, hasilAkhir: kataInput, logProses: ["tidak ada kaidah i'lal yg berlaku"], bina };
+    return { asalKata: kataInput, hasilAkhir: kataInput, logProses: [], bina };
   }
 
   // Kaidah 3 (string fallback)
   const re3 = /([^\u064B-\u065F])\u064E([وي])[\u064E\u064F\u0650\u064B\u064C\u064D]/g;
   if (re3.test(hasil)) {
     hasil = hasil.replace(/([^\u064B-\u065F])\u064E([وي])[\u064E\u064F\u0650\u064B\u064C\u064D]/g, "$1\u064E\u0627");
-    log.push("Kaidah 3 – Wawu/Ya berharakat setelah Fathah diganti menjadi Alif (ا).");
+    log.push({ pesan: "Kaidah 3 – Wawu/Ya berharakat setelah Fathah diganti menjadi Alif (ا).", hasilSementara: hasil });
   }
 
   // Kaidah 9 (string fallback)
   const re9 = /([\u064A\u062A\u0646\u0623])\u064E\u0648\u0652?([\u0621-\u064A])\u0650/g;
   if (re9.test(hasil)) {
     hasil = hasil.replace(/([\u064A\u062A\u0646\u0623])\u064E\u0648\u0652?([\u0621-\u064A])\u0650/g, "$1\u064E$2\u0650");
-    log.push("Kaidah 9 – Wawu Mitsal dibuang karena terapit fathah dan kasrah.");
+    log.push({ pesan: "Kaidah 9 – Wawu Mitsal dibuang karena terapit fathah dan kasrah.", hasilSementara: hasil });
   }
-
-  if (log.length === 0) log.push("tidak ada kaidah i'lal yg berlaku");
 
   return { asalKata: kataInput, hasilAkhir: hasil, logProses: log, bina };
 }

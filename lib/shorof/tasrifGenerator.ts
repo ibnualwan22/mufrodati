@@ -15,7 +15,7 @@
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
-import { AnatomiKata, WordContext }           from "./types";
+import { AnatomiKata, WordContext, ProsesIlal }           from "./types";
 import { deteksiBina }                        from "./bina";
 import { bangunAnatomi, renderAnatomiToString, getWazanLabel } from "./wazanBuilder";
 import { prosesIlal }                         from "./ilalEngine";
@@ -59,13 +59,17 @@ function generateSatuShighot(
 ): string {
   const ctx: WordContext = { ...baseCtx, shighot };
 
-  let anatomiAwal: AnatomiKata;
+  let anatomiAwal: AnatomiKata | AnatomiKata[];
   try {
     anatomiAwal = bangunAnatomi(ctx);
   } catch (e) {
     // Jika akar kata tidak valid atau shighot tidak dikenali, kembalikan string kosong
     console.warn(`[tasrifGenerator] Gagal bangun anatomi untuk shighot "${shighot}":`, e);
     return "";
+  }
+
+  if (Array.isArray(anatomiAwal)) {
+    return anatomiAwal.map(a => prosesIlal(a, ctx).hasilAkhir).join(" / ");
   }
 
   const hasilIlal = prosesIlal(anatomiAwal, ctx);
@@ -90,7 +94,7 @@ function generateSatuShighot(
 export function generateSemuaTasrif(
   akarKata: string,
   indonesian: string,
-  bab: 1 | 2 | 3 | 4 | 5 | 6,
+  bab: 1 | 2 | 3 | 4 | 5 | 6 | string,
   masdarAsli: string,
   opsi?: {
     /** Set true jika fi'il lazim (tidak punya maf'ul) */
@@ -177,4 +181,118 @@ export function previewTasrif(data: GeneratedWordData): void {
   console.log(`  Zaman/Makan: ${data.zamanMakan}`);
   console.log(`  Alaat      : ${data.alaat ?? "—"}`);
   console.log("═══════════════════════════════════════");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  Fungsi API/Frontend: Tasrif Detail
+// ══════════════════════════════════════════════════════════════════════════════
+
+export interface ShighotDetail {
+  hasilAkhir: string;
+  ilal: ProsesIlal[]; // Array karena terkadang ada multiple anatomi (seperti isim fa'il/masdar ganda) yang di-join " / "
+}
+
+export interface GeneratedWordDetail {
+  rootWord:   string;
+  indonesian: string;
+  bab:        string;
+  bina:       string;
+  wazanInfo:  string;
+  madhi:      ShighotDetail;
+  mudhari:    ShighotDetail;
+  masdar:     ShighotDetail;
+  masdarMim:  ShighotDetail;
+  faail:      ShighotDetail;
+  mafuul:     ShighotDetail | null;
+  amr:        ShighotDetail;
+  nahyi:      ShighotDetail;
+  zamanMakan: ShighotDetail;
+  alaat:      ShighotDetail | null;
+}
+
+function generateSatuShighotDetail(
+  shighot: WordContext["shighot"],
+  baseCtx: Omit<WordContext, "shighot">,
+  manualMasdar?: string
+): ShighotDetail {
+  const ctx: WordContext = { ...baseCtx, shighot };
+
+  let anatomiAwal: AnatomiKata | AnatomiKata[];
+  try {
+    anatomiAwal = bangunAnatomi(ctx);
+  } catch (e) {
+    return { hasilAkhir: "", ilal: [] };
+  }
+
+  // Jika admin memberikan masdar manual, kita tetap berusaha memberikan info I'lal kosong atau seadanya untuk itu
+  if (manualMasdar && shighot === "Masdar") {
+    return { 
+      hasilAkhir: manualMasdar, 
+      ilal: [{ 
+        asalKata: manualMasdar, 
+        hasilAkhir: manualMasdar, 
+        logProses: [], 
+        bina: ctx.bina 
+      }] 
+    };
+  }
+
+  if (Array.isArray(anatomiAwal)) {
+    const prosesResults = anatomiAwal.map(a => prosesIlal(a, ctx));
+    return {
+      hasilAkhir: prosesResults.map(r => r.hasilAkhir).join(" / "),
+      ilal: prosesResults
+    };
+  }
+
+  const hasilIlal = prosesIlal(anatomiAwal, ctx);
+  return {
+    hasilAkhir: hasilIlal.hasilAkhir,
+    ilal: [hasilIlal]
+  };
+}
+
+/**
+ * Menghasilkan semua bentuk tasrif HANYA untuk tampilan UI detail.
+ * Berisi string gabungan dan array objek I'lal untuk modal.
+ */
+export function generateSemuaTasrifDetail(
+  akarKata: string,
+  indonesian: string,
+  bab: 1 | 2 | 3 | 4 | 5 | 6 | string,
+  masdarAsli: string,
+  opsi?: { lazim?: boolean; polaAlat?: "مِفْعَلٌ" | "مِفْعَالٌ" | "مِفْعَلَةٌ" | "Tidak Ada"; }
+): GeneratedWordDetail {
+  const bina = deteksiBina(akarKata);
+  const baseCtx: Omit<WordContext, "shighot"> = { akarKata, bab, bina, polaAlat: opsi?.polaAlat };
+
+  const madhi      = generateSatuShighotDetail("Fi'il Madhi",       baseCtx);
+  const mudhari    = generateSatuShighotDetail("Fi'il Mudhari'",     baseCtx);
+  const masdar     = generateSatuShighotDetail("Masdar",            baseCtx, masdarAsli);
+  const masdarMim  = generateSatuShighotDetail("Masdar Mim",         baseCtx);
+  const faail      = generateSatuShighotDetail("Isim Fa'il",         baseCtx);
+  const mafuulStr  = generateSatuShighotDetail("Isim Maf'ul",        baseCtx);
+  const amr        = generateSatuShighotDetail("Fi'il Amr",          baseCtx);
+  const nahyi      = generateSatuShighotDetail("Fi'il Nahyi",        baseCtx);
+  const zamanMakan = generateSatuShighotDetail("Isim Zaman/Makan",   baseCtx);
+  
+  const alatStr = opsi?.polaAlat === "Tidak Ada" ? null : generateSatuShighotDetail("Isim Alat", baseCtx);
+
+  return {
+    rootWord:   akarKata,
+    indonesian,
+    bab:        String(bab),
+    bina,
+    wazanInfo:  typeof bab === "number" ? `Bab ${bab} (${getWazanLabel(bab)})` : `Wazan ${bab}`,
+    madhi,
+    mudhari,
+    masdar,
+    masdarMim,
+    faail,
+    mafuul:     opsi?.lazim ? null : mafuulStr,
+    amr,
+    nahyi,
+    zamanMakan,
+    alaat:      alatStr,
+  };
 }

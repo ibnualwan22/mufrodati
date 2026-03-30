@@ -13,10 +13,12 @@ datasource db {
 
 model Word {
   id          String   @id @default(cuid())
-  rootWord    String   // Akar kata (contoh: كتب)
-  indonesian  String   // Arti bahasa Indonesia
-  bab         String?  // Bab fi'il (contoh: Bab 1)
-  bina        String?  // Jenis bina' (contoh: Ajwaf Wawi, Shahih)
+  rootWord    String   // Akar kata (contoh: كتب, اكرم)
+  indonesian  String   // Arti bahasa Indonesia (opsional di awal)
+  bab         String?  // Bab fi'il (contoh: Bab 1, Asalnya Af'ala)
+  bina        String?  // Jenis bina' terperinci (contoh: Shohih Salim, Shohih Mahmuz Fa', dll)
+  transitive  String?  // Lazim / Muta'addi / Keduanya
+  jenisFiil   String?  // Tsulatsi Mujarrod / Tsulatsi Mazid / Ruba'i Mujarrod / Ruba'i Mazid
   
   // Tasrif Istilahi
   madhi       String
@@ -32,4 +34,6 @@ model Word {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@unique([madhi, bab])
 }

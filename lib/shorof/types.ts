@@ -49,7 +49,13 @@ export interface AnatomiKata {
   /** Harakat 'Ain al-Fi'l */
   harakatAin: string;
 
-  /** Lam al-Fi'l — huruf ketiga dari akar kata */
+  /** Lam al-Fi'l Pertama (Khusus Ruba'i / Akar 4 Huruf) */
+  lamFiilKedua?: string;
+
+  /** Harakat Lam al-Fi'l Pertama */
+  harakatLamKedua?: string;
+
+  /** Lam al-Fi'l — huruf ketiga (atau ke-empat untuk Ruba'i) dari akar kata */
   lamFiil: string;
 
   /** Harakat Lam al-Fi'l (atau sufiks akhir: ُ/ِ/tanwin/sukun) */
@@ -75,7 +81,8 @@ export interface WordContext {
   akarKata: string;
 
   /**
-   * Nomor Bab Fi'il (1–6), menentukan pola harakat Madhi/Mudhari'.
+   * Nomor Bab Fi'il (1–6) untuk Tsulatsi Mujarrod, atau string identifier wazan 
+   * untuk Tsulatsi Mazid / Ruba'i (misal: "af'ala", "fa''ala", "istaf'ala").
    * Sistem Bab mengacu pada tradisi ilmu Shorof klasik:
    *   Bab 1: فَعَلَ – يَفْعُلُ   (contoh: نَصَرَ)
    *   Bab 2: فَعَلَ – يَفْعِلُ   (contoh: ضَرَبَ)
@@ -84,7 +91,7 @@ export interface WordContext {
    *   Bab 5: فَعُلَ – يَفْعُلُ   (contoh: حَسُنَ)
    *   Bab 6: فَعِلَ – يَفْعِلُ   (contoh: حَسِبَ)
    */
-  bab: 1 | 2 | 3 | 4 | 5 | 6;
+  bab: 1 | 2 | 3 | 4 | 5 | 6 | string;
 
   /**
    * Jenis bina' (hasil dari deteksiBina).
@@ -137,11 +144,11 @@ export interface ProsesIlal {
   hasilAkhir: string;
 
   /**
-   * Daftar pesan log yang menjelaskan kaidah apa yang diterapkan, secara berurutan.
-   * Jika tidak ada kaidah yang berlaku, wajib berisi string:
-   *   "tidak ada kaidah i'lal yg berlaku"
+   * Daftar langkah (log) yang menjelaskan kaidah apa yang diterapkan, secara berurutan,
+   * dilengkapi dengan hasil render kata SETELAH kaidah tersebut diterapkan.
+   * Jika tidak ada kaidah yang berlaku, array ini kosong.
    */
-  logProses: string[];
+  logProses: { pesan: string; hasilSementara: string }[];
 
   /** Jenis bina' dari kata yang dianalisis */
   bina: string;

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Info } from "lucide-react";
+import IlalModal from "./IlalModal";
 
 type Word = {
   id: string;
@@ -34,17 +35,20 @@ export default function ResultCard({
   searchQuery,
   shighot,
   ilalPrefetched,
+  tasrifDetail,
 }: {
   word: Word;
   searchQuery: string;
   shighot?: string | null;
   ilalPrefetched?: any;
+  tasrifDetail?: any;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("detail");
   // Gunakan data I'lal yang sudah di-fetch dari /api/search, atau fetch saat tab aktif
   const [ilalResult, setIlalResult] = useState<any>(ilalPrefetched ?? null);
   const [ilalLoading, setIlalLoading] = useState(false);
   const [hasAttemptedIlal, setHasAttemptedIlal] = useState(!!ilalPrefetched);
+  const [selectedIlal, setSelectedIlal] = useState<{data: any, name: string} | null>(null);
 
   const fetchIlalAnalysis = async () => {
     if (hasAttemptedIlal) return;
@@ -287,30 +291,54 @@ export default function ResultCard({
               <tbody>
                 <tr>
                   {[
-                    word.madhi,
-                    word.mudhari,
-                    word.masdar,
-                    ...(word.masdarMim ? [word.masdarMim] : []),
-                    word.faail,
-                    word.mafuul ?? "—",
-                    word.amr,
-                    word.nahyi,
-                    word.zamanMakan,
-                    ...(word.alaat ? [word.alaat] : []),
-                  ].map((val, i) => (
-                    <td
-                      key={i}
-                      style={{
-                        padding: "1rem 0.75rem",
-                        textAlign: "center",
-                        color: val === "—" ? "#3a3530" : "#e8e0d0",
-                        borderBottom: "1px solid #1e1e1e",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {val}
-                    </td>
-                  ))}
+                    { val: tasrifDetail?.madhi?.hasilAkhir || word.madhi, ilal: tasrifDetail?.madhi?.ilal, name: "Fi'il Madhi" },
+                    { val: tasrifDetail?.mudhari?.hasilAkhir || word.mudhari, ilal: tasrifDetail?.mudhari?.ilal, name: "Fi'il Mudhari'" },
+                    { val: tasrifDetail?.masdar?.hasilAkhir || word.masdar, ilal: tasrifDetail?.masdar?.ilal, name: "Masdar" },
+                    ...(word.masdarMim ? [{ val: tasrifDetail?.masdarMim?.hasilAkhir || word.masdarMim, ilal: tasrifDetail?.masdarMim?.ilal, name: "Masdar Mim" }] : []),
+                    { val: tasrifDetail?.faail?.hasilAkhir || word.faail, ilal: tasrifDetail?.faail?.ilal, name: "Isim Fa'il" },
+                    { val: word.mafuul ? (tasrifDetail?.mafuul?.hasilAkhir || word.mafuul) : "—", ilal: tasrifDetail?.mafuul?.ilal, name: "Isim Maf'ul" },
+                    { val: tasrifDetail?.amr?.hasilAkhir || word.amr, ilal: tasrifDetail?.amr?.ilal, name: "Fi'il Amr" },
+                    { val: tasrifDetail?.nahyi?.hasilAkhir || word.nahyi, ilal: tasrifDetail?.nahyi?.ilal, name: "Fi'il Nahyi" },
+                    { val: tasrifDetail?.zamanMakan?.hasilAkhir || word.zamanMakan, ilal: tasrifDetail?.zamanMakan?.ilal, name: "Isim Zaman/Makan" },
+                    ...(word.alaat ? [{ val: tasrifDetail?.alaat?.hasilAkhir || word.alaat, ilal: tasrifDetail?.alaat?.ilal, name: "Isim Alat" }] : []),
+                  ].map((item, i) => {
+                    const hasIlal = item.ilal && item.ilal.length > 0 && 
+                      !(item.ilal[0].logProses.length === 0 || 
+                       (item.ilal[0].logProses.length === 1 && item.ilal[0].logProses[0].pesan === "tidak ada kaidah i'lal yg berlaku"));
+                    
+                    return (
+                      <td
+                        key={i}
+                        style={{
+                          padding: "1rem 0.75rem",
+                          textAlign: "center",
+                          color: item.val === "—" ? "#3a3530" : "#e8e0d0",
+                          borderBottom: "1px solid #1e1e1e",
+                          whiteSpace: "nowrap",
+                          position: "relative",
+                        }}
+                      >
+                        {item.val}
+                        {hasIlal && item.val !== "—" && (
+                          <button
+                            onClick={() => setSelectedIlal({ data: item.ilal, name: item.name })}
+                            title="Lihat Proses I'lal"
+                            style={{
+                              marginLeft: "0.5rem",
+                              background: "none",
+                              border: "none",
+                              color: "#c9a84c",
+                              cursor: "pointer",
+                              padding: "0 0.2rem",
+                              verticalAlign: "middle",
+                            }}
+                          >
+                            <Info size={14} />
+                          </button>
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               </tbody>
             </table>
@@ -525,6 +553,14 @@ export default function ResultCard({
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
+
+      {/* ── Modal I'lal ── */}
+      <IlalModal 
+        isOpen={!!selectedIlal} 
+        onClose={() => setSelectedIlal(null)} 
+        data={selectedIlal?.data} 
+        shighotName={selectedIlal?.name || ""} 
+      />
     </div>
   );
 }

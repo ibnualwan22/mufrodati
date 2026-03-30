@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { analisisIlal } from "@/lib/shorof/ilalEngine";
 import { deteksiBina, hapusHarakat } from "@/lib/shorof/bina";
 import { Prisma } from "@prisma/client";
+import { generateSemuaTasrifDetail } from "@/lib/shorof/tasrifGenerator";
 
 // ─── Urutan deteksi shighot (kolom lebih spesifik dulu) ──────────────────────
 const SHIGHOT_PRIORITY: { col: string; shighot: string }[] = [
@@ -73,7 +74,12 @@ export async function GET(req: NextRequest) {
     const searchPattern  = `%${cleanQ}%`;
 
     const results = await prisma.$queryRaw<any[]>`
-      SELECT *
+      SELECT *,
+        CASE 
+          WHEN regexp_replace("rootWord", ${harakatPattern}, '', 'g') = ${cleanQ} THEN 1
+          WHEN regexp_replace("madhi", ${harakatPattern}, '', 'g') = ${cleanQ} THEN 2
+          ELSE 3
+        END as exact_match_rank
       FROM "Word"
       WHERE
         regexp_replace("rootWord",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
@@ -88,6 +94,7 @@ export async function GET(req: NextRequest) {
         OR regexp_replace("nahyi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
         OR regexp_replace("zamanMakan",${harakatPattern}, '', 'g') ILIKE ${searchPattern}
         OR regexp_replace("alaat",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+      ORDER BY exact_match_rank ASC
       LIMIT 1
     `;
 
@@ -114,11 +121,31 @@ export async function GET(req: NextRequest) {
     const bina       = deteksiBina(word.rootWord);
     const ilalResult = analisisIlal(q, word.rootWord, bina, shighot_pencarian);
 
+    // ─── Generate Tasrif Render Detail ───────────────────────────────────────
+    let tasrifDetail = null;
+    try {
+      const tsulatsiBabs = ["1", "2", "3", "4", "5", "6"];
+      const parsedBab = typeof word.bab === "string" && tsulatsiBabs.includes(word.bab.trim())
+        ? parseInt(word.bab.trim()) as 1|2|3|4|5|6 
+        : word.bab;
+
+      tasrifDetail = generateSemuaTasrifDetail(
+        word.rootWord,
+        word.indonesian,
+        parsedBab,
+        word.masdar,
+        { lazim: word.mafuul === null || word.mafuul === "" }
+      );
+    } catch (err) {
+      console.warn("Gagal generate tasrif detail untuk kata:", word.rootWord, err);
+    }
+
     return NextResponse.json({
       found: true,
       word,
       shighot_pencarian,
       ilal: ilalResult,
+      tasrifDetail,
     });
   } catch (error) {
     console.error("GET /api/search error:", error);

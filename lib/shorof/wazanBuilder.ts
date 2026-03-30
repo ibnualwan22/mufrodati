@@ -14,6 +14,7 @@
 
 import { AnatomiKata, HarakatMap, WordContext } from "./types";
 import { hapusHarakat } from "./bina";
+import { bangunAnatomiMazid } from "./mazidBuilder";
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  Konstanta Unicode Harakat & Huruf
@@ -102,12 +103,12 @@ const HARAKAT_HAMZAH_AMR: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
  * Memecah akar kata 3 huruf menjadi tuple [fa, ain, lam].
  * Harakat pada input akan dibersihkan terlebih dahulu.
  */
-function pecahAkar(akarKata: string): [string, string, string] {
+function pecahAkar(akarKata: string): string[] {
   const bersih = hapusHarakat(akarKata);
   if (bersih.length < 3) {
-    throw new Error(`Akar kata tidak valid: "${akarKata}" (harus 3 huruf)`);
+    throw new Error(`Akar kata tidak valid: "${akarKata}" (minimal 3 huruf)`);
   }
-  return [bersih[0], bersih[1], bersih[2]];
+  return bersih.split("");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -359,10 +360,29 @@ function buildIsimAlat(
  * @returns AnatomiKata — peta posisi huruf yang lengkap
  * @throws Error jika akar kata tidak valid atau shighot tidak dikenali
  */
-export function bangunAnatomi(context: WordContext): AnatomiKata {
+export function bangunAnatomi(context: WordContext): AnatomiKata | AnatomiKata[] {
   const { akarKata, bab, bina, shighot, polaAlat } = context;
-  const [fa, ain, lam] = pecahAkar(akarKata);
+  const hurufAkar = pecahAkar(akarKata);
+  const fa = hurufAkar[0];
+  const ain = hurufAkar[1];
+  const lam1 = hurufAkar[2];
+  const lam2 = hurufAkar.length > 3 ? hurufAkar[3] : "";
 
+  if (typeof bab === "string") {
+    // Jika 4 huruf, arahkan ke rubaiBuilder, jika 3 arahkan ke mazidBuilder
+    if (hurufAkar.length === 4) {
+      // Lazy import supaya tidak circular / terlalu panjang di sini
+      // TODO: panggil bangunAnatomiRubai
+      const { bangunAnatomiRubai } = require('./rubaiBuilder');
+      return bangunAnatomiRubai(fa, ain, lam1, lam2, bab, shighot as string);
+    }
+    // Delegasikan pembangunan wazan Mazid ke mazidBuilder
+    return bangunAnatomiMazid(fa, ain, lam1, bab, shighot as string);
+  }
+
+  // Dari sini ke bawah, TypeScript tahu bahwa `bab` pasti 1 | 2 | 3 | 4 | 5 | 6
+  // Asumsi Tsulatsi Mujarrod (harus 3 huruf akar)
+  const lam = lam1;
   switch (shighot) {
     case "Fi'il Madhi":
       return buildMadhi(fa, ain, lam, bab);
@@ -465,6 +485,12 @@ export function renderAnatomiToString(anatomi: AnatomiKata): string {
     bagian.push(anatomi.hurufZiyadahSetelahAin);
   }
 
+  // 6.5 Lam Fi'il Kedua (Khusus Wazan Ruba'i / Akar 4 Huruf)
+  if (anatomi.lamFiilKedua) {
+    bagian.push(anatomi.lamFiilKedua);
+    if (anatomi.harakatLamKedua) bagian.push(anatomi.harakatLamKedua);
+  }
+
   // 7. Lam al-Fi'l + harakatnya
   // Catatan: lamFiil bisa kosong saat Idghom (kaidah 2) — tapi harakatLam
   // tetap harus dirender karena ia adalah harakat akhir dari huruf yang diidghom.
@@ -498,6 +524,9 @@ export function renderAnatomiToString(anatomi: AnatomiKata): string {
  */
 export function bangunDanRender(context: WordContext): string {
   const anatomi = bangunAnatomi(context);
+  if (Array.isArray(anatomi)) {
+    return anatomi.map(renderAnatomiToString).join(" / ");
+  }
   return renderAnatomiToString(anatomi);
 }
 
@@ -508,7 +537,10 @@ export function bangunDanRender(context: WordContext): string {
  * @param bab - Nomor bab (1–6)
  * @returns String label wazan
  */
-export function getWazanLabel(bab: 1 | 2 | 3 | 4 | 5 | 6): string {
+export function getWazanLabel(bab: 1 | 2 | 3 | 4 | 5 | 6 | string): string {
+  if (typeof bab === "string") {
+    return bab; // Untuk wazan mazid, kembalikan identifier-nya langsung
+  }
   const labels: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
     1: "فَعَلَ – يَفْعُلُ",
     2: "فَعَلَ – يَفْعِلُ",

@@ -11,6 +11,7 @@ export default function Home() {
   const [searched, setSearched] = useState(false);
   const [shighot, setShighot] = useState<string | null>(null);
   const [ilalFromSearch, setIlalFromSearch] = useState<any>(null);
+  const [tasrifDetail, setTasrifDetail] = useState<any>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +28,7 @@ export default function Home() {
         setResult(data.word);
         setShighot(data.shighot_pencarian ?? null);
         setIlalFromSearch(data.ilal ?? null);
+        setTasrifDetail(data.tasrifDetail ?? null);
       } else {
         setResult(null);
       }
@@ -240,7 +242,13 @@ export default function Home() {
         }}
       >
         {result && !loading && (
-          <ResultCard word={result} searchQuery={query} shighot={shighot} ilalPrefetched={ilalFromSearch} />
+          <ResultCard 
+            word={result} 
+            searchQuery={query} 
+            shighot={shighot} 
+            ilalPrefetched={ilalFromSearch} 
+            tasrifDetail={tasrifDetail} 
+          />
         )}
 
         {searched && !loading && !result && (
