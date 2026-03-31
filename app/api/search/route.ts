@@ -54,6 +54,7 @@ const HARAKAT_PG_PATTERN = "\u064B\u064C\u064D\u064E\u064F\u0650\u0651\u0652\u06
 export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   const q = searchParams.get("q");
+  const id = searchParams.get("id"); // ID dari hasil suggest
 
   if (!q || !q.trim()) {
     return NextResponse.json({ error: "Parameter 'q' dibutuhkan." }, { status: 400 });
@@ -63,42 +64,49 @@ export async function GET(req: NextRequest) {
   const cleanQ = hapusHarakat(q);
 
   try {
-    // ─── Raw Query: strip harakat di sisi DB dengan regexp_replace ────────────
-    // Pola regex PostgreSQL: karakter harakat Arab distrip dari tiap kolom,
-    // kemudian dibandingkan dengan ILIKE (case-insensitive) terhadap cleanQ.
-    //
-    // Mengapa Raw Query?
-    // Prisma ORM tidak bisa memanggil fungsi PostgreSQL seperti regexp_replace()
-    // dalam klausa WHERE melalui query builder standar.
-    const harakatPattern = `[${HARAKAT_PG_PATTERN}]`;
-    const searchPattern  = `%${cleanQ}%`;
+    let word: any = null;
 
-    const results = await prisma.$queryRaw<any[]>`
-      SELECT *,
-        CASE 
-          WHEN regexp_replace("rootWord", ${harakatPattern}, '', 'g') = ${cleanQ} THEN 1
-          WHEN regexp_replace("madhi", ${harakatPattern}, '', 'g') = ${cleanQ} THEN 2
-          ELSE 3
-        END as exact_match_rank
-      FROM "Word"
-      WHERE
-        regexp_replace("rootWord",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("indonesian", ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("madhi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("mudhari",  ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("masdar",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("masdarMim",${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("faail",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("mafuul",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("amr",      ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("nahyi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("zamanMakan",${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-        OR regexp_replace("alaat",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-      ORDER BY exact_match_rank ASC
-      LIMIT 1
-    `;
+    // ─── 1. Jika ada ID (diklik dari Suggestion), cari eksak berdasarkan ID ───
+    if (id) {
+      word = await prisma.word.findUnique({ where: { id } });
+    }
 
-    const word = results[0] ?? null;
+    // ─── 2. Jika tidak ada ID (Enter manual dari text input) ───────────────────
+    if (!word) {
+      const harakatPattern = `[${HARAKAT_PG_PATTERN}]`;
+      const searchPattern  = `%${cleanQ}%`;
+
+      const results = await prisma.$queryRaw<any[]>`
+        SELECT *,
+          CASE 
+            WHEN regexp_replace("madhi", ${harakatPattern}, '', 'g') = ${cleanQ} THEN 1
+            WHEN regexp_replace("rootWord", ${harakatPattern}, '', 'g') = ${cleanQ} THEN 2
+            ELSE 3
+          END as exact_match_rank,
+          LENGTH(regexp_replace("madhi", ${harakatPattern}, '', 'g')) as madhi_len,
+          CASE 
+            WHEN bab IN ('1','2','3','4','5','6') THEN 1
+            ELSE 2
+          END as bab_rank
+        FROM "Word"
+        WHERE
+          regexp_replace("rootWord",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("indonesian", ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("madhi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("mudhari",  ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("masdar",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("masdarMim",${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("faail",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("mafuul",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("amr",      ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("nahyi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("zamanMakan",${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace("alaat",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+        ORDER BY exact_match_rank ASC, madhi_len ASC, bab_rank ASC
+        LIMIT 1
+      `;
+      word = results[0] ?? null;
+    }
 
     if (!word) {
       return NextResponse.json({ found: false, word: null }, { status: 200 });
@@ -125,9 +133,10 @@ export async function GET(req: NextRequest) {
     let tasrifDetail = null;
     try {
       const tsulatsiBabs = ["1", "2", "3", "4", "5", "6"];
-      const parsedBab = typeof word.bab === "string" && tsulatsiBabs.includes(word.bab.trim())
-        ? parseInt(word.bab.trim()) as 1|2|3|4|5|6 
-        : word.bab;
+      let parsedBab: 1|2|3|4|5|6 | string = String(word.bab).trim();
+      if (tsulatsiBabs.includes(parsedBab)) {
+        parsedBab = parseInt(parsedBab) as 1|2|3|4|5|6;
+      }
 
       tasrifDetail = generateSemuaTasrifDetail(
         word.rootWord,

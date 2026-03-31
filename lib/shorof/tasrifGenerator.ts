@@ -208,6 +208,18 @@ export interface GeneratedWordDetail {
   nahyi:      ShighotDetail;
   zamanMakan: ShighotDetail;
   alaat:      ShighotDetail | null;
+  wazanTemplate: {
+    madhi: string;
+    mudhari: string;
+    masdar: string;
+    masdarMim: string;
+    faail: string;
+    mafuul: string | null;
+    amr: string;
+    nahyi: string;
+    zamanMakan: string;
+    alaat: string | null;
+  };
 }
 
 function generateSatuShighotDetail(
@@ -278,12 +290,27 @@ export function generateSemuaTasrifDetail(
   
   const alatStr = opsi?.polaAlat === "Tidak Ada" ? null : generateSatuShighotDetail("Isim Alat", baseCtx);
 
+  const wBaseCtx: Omit<WordContext, "shighot"> = { akarKata: "فعل", bab, bina: "Shahih Salim", polaAlat: opsi?.polaAlat };
+  const wazanTemplate = {
+    madhi:      generateSatuShighotDetail("Fi'il Madhi", wBaseCtx).hasilAkhir,
+    mudhari:    generateSatuShighotDetail("Fi'il Mudhari'", wBaseCtx).hasilAkhir,
+    // Jika masdar manual kosong, ia akan meng-generate Masdar Qiyasi wazan tersebut
+    masdar:     generateSatuShighotDetail("Masdar", wBaseCtx, "").hasilAkhir,
+    masdarMim:  generateSatuShighotDetail("Masdar Mim", wBaseCtx).hasilAkhir,
+    faail:      generateSatuShighotDetail("Isim Fa'il", wBaseCtx).hasilAkhir,
+    mafuul:     opsi?.lazim ? null : generateSatuShighotDetail("Isim Maf'ul", wBaseCtx).hasilAkhir,
+    amr:        generateSatuShighotDetail("Fi'il Amr", wBaseCtx).hasilAkhir,
+    nahyi:      generateSatuShighotDetail("Fi'il Nahyi", wBaseCtx).hasilAkhir,
+    zamanMakan: generateSatuShighotDetail("Isim Zaman/Makan", wBaseCtx).hasilAkhir,
+    alaat:      opsi?.polaAlat === "Tidak Ada" ? null : generateSatuShighotDetail("Isim Alat", wBaseCtx).hasilAkhir,
+  };
+
   return {
     rootWord:   akarKata,
     indonesian,
     bab:        String(bab),
     bina,
-    wazanInfo:  typeof bab === "number" ? `Bab ${bab} (${getWazanLabel(bab)})` : `Wazan ${bab}`,
+    wazanInfo:  typeof bab === "number" ? `Bab ${bab} (${getWazanLabel(bab)})` : `Wazan ${getWazanLabel(bab)}`,
     madhi,
     mudhari,
     masdar,
@@ -294,5 +321,6 @@ export function generateSemuaTasrifDetail(
     nahyi,
     zamanMakan,
     alaat:      alatStr,
+    wazanTemplate,
   };
 }

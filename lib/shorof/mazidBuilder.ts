@@ -29,19 +29,21 @@ const H = {
  * Normalisasi Bab ID ke Wazan Standar.
  * Menerima ID dari Qutrub (seperti "112", "126") atau string wazan eksplisit.
  */
-function normalizeBabMazid(bab: string): string {
+export function normalizeBabMazid(bab: string): string {
   // Map ID Qutrub ke Wazan Standar
   const qutrubMap: Record<string, string> = {
-    // Rubai
-    "53": "af'ala",  // Biasanya Mahmuz Fa'
+    "11": "af'ala",
+    "53": "af'ala",
     "56": "af'ala",
     "61": "af'ala",
-    "112": "fa''ala", // فَـعَّـلَ
+    "73": "infa'ala",   // انْفَعَلَ
+    "112": "fa''ala",   // فَـعَّـلَ
+    "115": "ifta'ala",  // افْتَعَلَ
+    "119": "faa'ala",   // فَاعَلَ
+    "120": "faa'ala",   // فَاعَلَ
+    "123": "tafaa'ala", // تَـفَاعَلَ (takataba)
     "126": "tafa''ala", // تَـفَـعَّـلَ
-    "115": "ifta'ala", // افْتَعَلَ
     "130": "istaf'ala", // اسْتَفْعَلَ
-    "73": "infa'ala", // انْفَعَلَ
-    // Tambahkan lebih banyak jika teridentifikasi saat import
   };
 
   if (qutrubMap[bab]) return qutrubMap[bab];

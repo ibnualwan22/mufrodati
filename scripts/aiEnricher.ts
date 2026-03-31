@@ -15,11 +15,11 @@ import { prisma } from "../lib/prisma";
 //     AI_PROVIDER=gemini
 // ─────────────────────────────────────────────────────────────────────────────
 
-const PROVIDER     = process.env.AI_PROVIDER ?? "gemini";
-const BATCH_SIZE   = 20;
-const DELAY_MS     = 8000; // 8 detik untuk mencegah Rate Limit Groq (6000 TPM limit)
+const PROVIDER = process.env.AI_PROVIDER ?? "gemini";
+const BATCH_SIZE = 20;
+const DELAY_MS = 1000; // 8 detik untuk mencegah Rate Limit Groq (6000 TPM limit)
 
-interface WordBatch  { id: string; rootWord: string; madhi: string; bab: string | null; }
+interface WordBatch { id: string; rootWord: string; madhi: string; bab: string | null; }
 interface AiResponse { id: string; arti: string; akar?: string; }
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
@@ -75,11 +75,12 @@ export let currentGroqKeyIndex = 0;
 
 // ─── FUNGSI TERJEMAH BATCH ──────────────────────────────────────────────────
 async function enrichBatch(batch: WordBatch[]): Promise<AiResponse[]> {
-  const dataJson = batch.map(w => ({ id: w.id, kata: w.madhi, akar: w.rootWord }));
+  // Hanya beri 'kata' (madhi) agar AI memikirkan akar katanya sendiri (tanpa menyontek).
+  const dataJson = batch.map(w => ({ id: w.id, kata: w.madhi }));
 
   const prompt = `Anda ahli Shorof dan kamus Arab-Indonesia yang akurat. Berikan arti fi'il Arab dalam Bahasa Indonesia, dan ekstraksi AKAR KATA (Root Word) murni 3 HURUF ASLI-nya.
 Aturan Arti: singkat 2-4 kata, awalan me-/ber-/ter- yang tepat.
-Aturan Akar: wajib berbentuk 3 huruf (Tsulatsi Mujarrod) tanpa harakat. Kembalikan huruf illat keasalnya, contoh: 'أَرَادَ' akarnya 'رود', 'اِسْتَغْفَرَ' akarnya 'غفر'.
+Aturan Akar: WAJIB berbentuk 3 huruf asli (Tsulatsi Mujarrod) tanpa harakat. Kembalikan huruf illat keasalnya, contoh: 'أَرَادَ' akarnya 'رود', 'اِسْتَغْفَرَ' akarnya 'غفر', 'تَباعَدَ' akarnya 'بعد'.
 WAJIB balas semua ${batch.length} item.
 
 Masukan: ${JSON.stringify(dataJson)}
@@ -120,8 +121,8 @@ Balas HANYA JSON array (tanpa markdown):
     for (const word of batch.filter(w => !returned.has(w.id))) {
       try {
         let retryText = "";
-        const retryPrompt = `Berikan arti Indonesia singkat dan akar kata murni (3 huruf) dari fi'il Arab: ${word.madhi} (akar asalnya/unvocalized kotor: ${word.rootWord}). Balas HANYA JSON: {"arti":"...", "akar":"..."}`;
-        if (PROVIDER === "groq")     retryText = await callOpenAICompatible(groqKeys[currentGroqKeyIndex], "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", retryPrompt);
+        const retryPrompt = `Berikan arti Indonesia singkat dan akar kata murni (3 huruf) dari fi'il Arab: ${word.madhi}. Balas HANYA JSON: {"arti":"...", "akar":"..."}`;
+        if (PROVIDER === "groq") retryText = await callOpenAICompatible(groqKeys[currentGroqKeyIndex], "https://api.groq.com/openai/v1", "llama-3.3-70b-versatile", retryPrompt);
         else if (PROVIDER === "deepseek") retryText = await callOpenAICompatible(process.env.DEEPSEEK_API_KEY!, "https://api.deepseek.com/v1", "deepseek-chat", retryPrompt);
         else retryText = await callGemini(process.env.GEMINI_API_KEY!, "gemini-2.0-flash", retryPrompt);
         const t = retryText.trim().replace(/^```json?\n?/, "").replace(/\n?```$/, "").trim();
@@ -141,15 +142,15 @@ Balas HANYA JSON array (tanpa markdown):
 
 // ─── MAIN ───────────────────────────────────────────────────────────────────
 async function run() {
-  const key = PROVIDER === "groq"     ? groqKeys[0]
-            : PROVIDER === "deepseek" ? process.env.DEEPSEEK_API_KEY
-            :                           process.env.GEMINI_API_KEY;
+  const key = PROVIDER === "groq" ? groqKeys[0]
+    : PROVIDER === "deepseek" ? process.env.DEEPSEEK_API_KEY
+      : process.env.GEMINI_API_KEY;
 
   if (!key) { console.error(`❌ API key untuk provider '${PROVIDER}' tidak ditemukan di .env!`); process.exit(1); }
 
   const totalAll = await prisma.word.count();
   console.log(`\n🚀 AI Enricher — Mufrodati`);
-  console.log(`🤖 Provider: ${PROVIDER.toUpperCase()} | ${BATCH_SIZE} kata/req | ${DELAY_MS/1000}s delay`);
+  console.log(`🤖 Provider: ${PROVIDER.toUpperCase()} | ${BATCH_SIZE} kata/req | ${DELAY_MS / 1000}s delay`);
   console.log(`📊 Total kata DB: ${totalAll}\n`);
 
   let totalSuccess = 0, skippedBatches = 0, offset = 0;
@@ -167,7 +168,7 @@ async function run() {
     if (batch.length === 0) { if (offset > 0) { offset = 0; continue; } break; }
 
     const filled = totalAll - remaining;
-    const pct    = ((filled / totalAll) * 100).toFixed(1);
+    const pct = ((filled / totalAll) * 100).toFixed(1);
     process.stdout.write(`[${pct}% | ${filled}/${totalAll}] ${batch.length} kata...`);
 
     try {
@@ -175,14 +176,20 @@ async function run() {
       let ok = 0;
       for (const res of results) {
         if (res.id && res.arti?.length > 0) {
-          try { 
+          try {
             const dataToUpdate: any = { indonesian: res.arti };
-            // Jika LLM mengirimkan akar 3 huruf (atau max 4 untuk rubai)
-            if (res.akar && res.akar.length >= 3 && res.akar.length <= 4 && !res.akar.includes(' ')) {
-              dataToUpdate.rootWord = res.akar;
+            // Bersihkan harakat agar perhitungan panjang string akurat
+            let cleanAkar = "";
+            if (res.akar) {
+              cleanAkar = res.akar.replace(/[\u064B-\u065F\u0670]/g, '').trim();
             }
-            await prisma.word.update({ where: { id: res.id }, data: dataToUpdate }); 
-            ok++; totalSuccess++; 
+            // Jika LLM mengirimkan akar 3 huruf (atau max 4 untuk rubai) dan pastikan dia memakai aksara Arab
+            const isArabic = /^[\\u0600-\\u06FF\\s]+$/.test(cleanAkar);
+            if (cleanAkar.length >= 3 && cleanAkar.length <= 4 && !cleanAkar.includes(' ') && isArabic) {
+              dataToUpdate.rootWord = cleanAkar;
+            }
+            await prisma.word.update({ where: { id: res.id }, data: dataToUpdate });
+            ok++; totalSuccess++;
           }
           catch { /* skip */ }
         }
@@ -203,7 +210,7 @@ async function run() {
           continue;
         }
       }
-      process.stdout.write(` ⚠️  Error: ${err.message?.slice(0,50)}, skip\n`);
+      process.stdout.write(` ⚠️  Error: ${err.message?.slice(0, 50)}, skip\n`);
       offset += BATCH_SIZE; skippedBatches++;
       if (skippedBatches >= 5) {
         console.log(`\n⏸️  Banyak error, tunggu 2 menit...\n`);

@@ -14,7 +14,7 @@
 
 import { AnatomiKata, HarakatMap, WordContext } from "./types";
 import { hapusHarakat } from "./bina";
-import { bangunAnatomiMazid } from "./mazidBuilder";
+import { bangunAnatomiMazid, normalizeBabMazid } from "./mazidBuilder";
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  Konstanta Unicode Harakat & Huruf
@@ -539,7 +539,19 @@ export function bangunDanRender(context: WordContext): string {
  */
 export function getWazanLabel(bab: 1 | 2 | 3 | 4 | 5 | 6 | string): string {
   if (typeof bab === "string") {
-    return bab; // Untuk wazan mazid, kembalikan identifier-nya langsung
+    const wazan = normalizeBabMazid(bab);
+    const wazanTextMap: Record<string, string> = {
+      "af'ala": "أَفْعَلَ",
+      "fa''ala": "فَعَّلَ",
+      "faa'ala": "فَاعَلَ",
+      "tafa''ala": "تَفَعَّلَ",
+      "tafaa'ala": "تَفَاعَلَ",
+      "ifta'ala": "افْتَعَلَ",
+      "infa'ala": "انْفَعَلَ",
+      "istaf'ala": "اسْتَفْعَلَ",
+    };
+    const arab = wazanTextMap[wazan] || wazan;
+    return `${arab} (${wazan})`; 
   }
   const labels: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
     1: "فَعَلَ – يَفْعُلُ",

@@ -232,10 +232,39 @@ export default function ResultCard({
                 <Row label="Bab" value={word.bab} />
               </>
             )}
-            {word.bina && (
+            {(ilalPrefetched?.bina || word.bina) && (
               <>
                 <Divider />
-                <Row label="Bina'" value={word.bina} />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "0.6rem 0",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      color: "#5a5040",
+                      fontFamily: "'Georgia', serif",
+                    }}
+                  >
+                    Bina&apos;
+                  </span>
+                  <span
+                    dir="rtl"
+                    style={{
+                      fontFamily: "'Amiri', 'Scheherazade New', serif",
+                      fontSize: "1.2rem",
+                      color: "#c9a84c",
+                    }}
+                  >
+                    {ilalPrefetched?.bina ?? word.bina}
+                  </span>
+                </div>
               </>
             )}
           </div>
@@ -243,7 +272,30 @@ export default function ResultCard({
 
         {/* ─ Tasrif ─ */}
         {activeTab === "tasrif" && (
-          <div style={{ overflowX: "auto" }}>
+          <div style={{ overflowX: "auto", position: "relative" }}>
+            {tasrifDetail?.wazanInfo && (
+              <div
+                style={{
+                  textAlign: "center",
+                  marginBottom: "1.2rem",
+                  fontFamily: "'Georgia', serif",
+                }}
+              >
+                <span
+                  style={{
+                    backgroundColor: "#1a1510",
+                    border: "1px solid #3a3020",
+                    color: "#c9a84c",
+                    padding: "0.25rem 0.75rem",
+                    borderRadius: "4px",
+                    fontSize: "0.75rem",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {tasrifDetail.wazanInfo}
+                </span>
+              </div>
+            )}
             <table
               style={{
                 width: "100%",
@@ -291,16 +343,16 @@ export default function ResultCard({
               <tbody>
                 <tr>
                   {[
-                    { val: tasrifDetail?.madhi?.hasilAkhir || word.madhi, ilal: tasrifDetail?.madhi?.ilal, name: "Fi'il Madhi" },
-                    { val: tasrifDetail?.mudhari?.hasilAkhir || word.mudhari, ilal: tasrifDetail?.mudhari?.ilal, name: "Fi'il Mudhari'" },
-                    { val: tasrifDetail?.masdar?.hasilAkhir || word.masdar, ilal: tasrifDetail?.masdar?.ilal, name: "Masdar" },
-                    ...(word.masdarMim ? [{ val: tasrifDetail?.masdarMim?.hasilAkhir || word.masdarMim, ilal: tasrifDetail?.masdarMim?.ilal, name: "Masdar Mim" }] : []),
-                    { val: tasrifDetail?.faail?.hasilAkhir || word.faail, ilal: tasrifDetail?.faail?.ilal, name: "Isim Fa'il" },
-                    { val: word.mafuul ? (tasrifDetail?.mafuul?.hasilAkhir || word.mafuul) : "—", ilal: tasrifDetail?.mafuul?.ilal, name: "Isim Maf'ul" },
-                    { val: tasrifDetail?.amr?.hasilAkhir || word.amr, ilal: tasrifDetail?.amr?.ilal, name: "Fi'il Amr" },
-                    { val: tasrifDetail?.nahyi?.hasilAkhir || word.nahyi, ilal: tasrifDetail?.nahyi?.ilal, name: "Fi'il Nahyi" },
-                    { val: tasrifDetail?.zamanMakan?.hasilAkhir || word.zamanMakan, ilal: tasrifDetail?.zamanMakan?.ilal, name: "Isim Zaman/Makan" },
-                    ...(word.alaat ? [{ val: tasrifDetail?.alaat?.hasilAkhir || word.alaat, ilal: tasrifDetail?.alaat?.ilal, name: "Isim Alat" }] : []),
+                    { val: tasrifDetail?.madhi?.hasilAkhir || word.madhi, wazan: tasrifDetail?.wazanTemplate?.madhi, ilal: tasrifDetail?.madhi?.ilal, name: "Fi'il Madhi" },
+                    { val: tasrifDetail?.mudhari?.hasilAkhir || word.mudhari, wazan: tasrifDetail?.wazanTemplate?.mudhari, ilal: tasrifDetail?.mudhari?.ilal, name: "Fi'il Mudhari'" },
+                    { val: tasrifDetail?.masdar?.hasilAkhir || word.masdar, wazan: tasrifDetail?.wazanTemplate?.masdar, ilal: tasrifDetail?.masdar?.ilal, name: "Masdar" },
+                    ...(word.masdarMim ? [{ val: tasrifDetail?.masdarMim?.hasilAkhir || word.masdarMim, wazan: tasrifDetail?.wazanTemplate?.masdarMim, ilal: tasrifDetail?.masdarMim?.ilal, name: "Masdar Mim" }] : []),
+                    { val: tasrifDetail?.faail?.hasilAkhir || word.faail, wazan: tasrifDetail?.wazanTemplate?.faail, ilal: tasrifDetail?.faail?.ilal, name: "Isim Fa'il" },
+                    { val: word.mafuul ? (tasrifDetail?.mafuul?.hasilAkhir || word.mafuul) : "—", wazan: tasrifDetail?.wazanTemplate?.mafuul, ilal: tasrifDetail?.mafuul?.ilal, name: "Isim Maf'ul" },
+                    { val: tasrifDetail?.amr?.hasilAkhir || word.amr, wazan: tasrifDetail?.wazanTemplate?.amr, ilal: tasrifDetail?.amr?.ilal, name: "Fi'il Amr" },
+                    { val: tasrifDetail?.nahyi?.hasilAkhir || word.nahyi, wazan: tasrifDetail?.wazanTemplate?.nahyi, ilal: tasrifDetail?.nahyi?.ilal, name: "Fi'il Nahyi" },
+                    { val: tasrifDetail?.zamanMakan?.hasilAkhir || word.zamanMakan, wazan: tasrifDetail?.wazanTemplate?.zamanMakan, ilal: tasrifDetail?.zamanMakan?.ilal, name: "Isim Zaman/Makan" },
+                    ...(word.alaat ? [{ val: tasrifDetail?.alaat?.hasilAkhir || word.alaat, wazan: tasrifDetail?.wazanTemplate?.alaat, ilal: tasrifDetail?.alaat?.ilal, name: "Isim Alat" }] : []),
                   ].map((item, i) => {
                     const hasIlal = item.ilal && item.ilal.length > 0 && 
                       !(item.ilal[0].logProses.length === 0 || 
@@ -315,26 +367,38 @@ export default function ResultCard({
                           color: item.val === "—" ? "#3a3530" : "#e8e0d0",
                           borderBottom: "1px solid #1e1e1e",
                           whiteSpace: "nowrap",
-                          position: "relative",
+                          verticalAlign: "top",
                         }}
                       >
-                        {item.val}
-                        {hasIlal && item.val !== "—" && (
-                          <button
-                            onClick={() => setSelectedIlal({ data: item.ilal, name: item.name })}
-                            title="Lihat Proses I'lal"
+                        <div style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                          {item.val}
+                          {hasIlal && item.val !== "—" && (
+                            <button
+                              onClick={() => setSelectedIlal({ data: item.ilal, name: item.name })}
+                              title="Lihat Proses I'lal"
+                              style={{
+                                marginLeft: "0.5rem",
+                                background: "none",
+                                border: "none",
+                                color: "#c9a84c",
+                                cursor: "pointer",
+                                padding: "0 0.2rem",
+                              }}
+                            >
+                              <Info size={14} />
+                            </button>
+                          )}
+                        </div>
+                        {item.wazan && item.val !== "—" && (
+                          <div
                             style={{
-                              marginLeft: "0.5rem",
-                              background: "none",
-                              border: "none",
-                              color: "#c9a84c",
-                              cursor: "pointer",
-                              padding: "0 0.2rem",
-                              verticalAlign: "middle",
+                              marginTop: "0.6rem",
+                              fontSize: "1rem",
+                              color: "#6a6050",
                             }}
                           >
-                            <Info size={14} />
-                          </button>
+                            {item.wazan}
+                          </div>
                         )}
                       </td>
                     );
@@ -419,9 +483,9 @@ export default function ResultCard({
               // ── Roadmap lengkap jika ada kaidah berlaku ──
               return (
                 <div>
-                  {/* Kata Diinput */}
+                  {/* Kata Dicari — tampilkan madhi (ada harakat, lebih konkret) */}
                   <div style={{ marginBottom: "1.75rem" }}>
-                    <label style={labelStyle}>Kata Diinput</label>
+                    <label style={labelStyle}>Kata Dicari</label>
                     <span
                       style={{
                         fontFamily: "'Amiri', serif",
@@ -432,7 +496,7 @@ export default function ResultCard({
                       }}
                       dir="rtl"
                     >
-                      {searchQuery}
+                      {word.madhi || word.rootWord}
                     </span>
                   </div>
 
