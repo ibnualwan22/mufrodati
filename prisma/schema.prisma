@@ -20,10 +20,10 @@ model Word {
   transitive  String?  // Lazim / Muta'addi / Keduanya
   jenisFiil   String?  // Tsulatsi Mujarrod / Tsulatsi Mazid / Ruba'i Mujarrod / Ruba'i Mazid
   
-  // Tasrif Istilahi
+  // Tasrif Istilahi (Lafadz Arab)
   madhi       String
   mudhari     String
-  masdar      String
+  masdar      String[] // Mendukung lebih dari 1 masdar
   masdarMim   String?
   faail       String
   mafuul      String?
@@ -32,6 +32,23 @@ model Word {
   zamanMakan  String
   alaat       String?
   
+  // Wazan Overrides (Opsional)
+  wazanMasdar     String[]
+  wazanZamanMakan String?
+  wazanAlaat      String?
+
+  // Arti Kontekstual per Shighot (Opsional / Override)
+  artiMadhi       String?
+  artiMudhari     String?
+  artiMasdar      String[]
+  artiMasdarMim   String?
+  artiFaail       String?
+  artiMafuul      String?
+  artiAmr         String?
+  artiNahyi       String?
+  artiZamanMakan  String?
+  artiAlaat       String?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

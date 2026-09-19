@@ -1216,3 +1216,31 @@ export function prosesTasrifDanIlal(kata: string, akarKata: string): ProsesIlal 
   const bina = deteksiBina(akarKata);
   return analisisIlal(kata, akarKata, bina, "Fi'il Madhi");
 }
+
+/**
+ * terapkanIlalMasdar — Proses I'lal string-based khusus untuk Masdar 
+ * (digunakan pada auto-generation Client side ketika wazan dipilih dari dropdown)
+ */
+export function terapkanIlalMasdar(lafadzKasar: string, bina: string): string {
+  let hasil = lafadzKasar;
+
+  // 1. Ajwaf Wawi: ِ و ا -> ِ ي ا (contoh: صِوَام -> صِيَام)
+  if (bina.includes("Ajwaf Wawi")) {
+    const reAjwafWawi = /([^\u064B-\u065F]\u0650)\u0648(\u064E?\u0627)/g;
+    hasil = hasil.replace(reAjwafWawi, "$1\u064A$2");
+  }
+
+  // 2. Mitsal Wawi: ِ وْ -> ِ يْ (contoh: مِوْعَاد -> مِيْعَاد -> مِيعَاد)
+  if (bina.includes("Mitsal Wawi")) {
+    // Wawu sukun setelah kasrah menjadi Ya sukun
+    const reMitsalWawi = /([^\u064B-\u065F]\u0650)\u0648\u0652/g;
+    hasil = hasil.replace(reMitsalWawi, "$1\u064A\u0652");
+    
+    // Ya sukun setelah kasrah bisa dirapikan menjadi Madd (hilangkan sukun)
+    // ِ ي ْ -> ِ ي
+    const reMaddMitsal = /([^\u064B-\u065F]\u0650)\u064A\u0652/g;
+    hasil = hasil.replace(reMaddMitsal, "$1\u064A");
+  }
+
+  return hasil;
+}

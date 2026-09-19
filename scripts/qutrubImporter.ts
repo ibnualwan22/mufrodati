@@ -96,10 +96,10 @@ async function run() {
       parsedBab = tableBase; // Biarkan string, biarkan engine mencoba fallback
     }
 
-    let tasrifFields = {
+    let tasrifFields: any = {
       madhi: verb,
       mudhari: '',
-      masdar: '',
+      masdar: [],
       masdarMim: '',
       faail: '',
       mafuul: '',
@@ -117,7 +117,7 @@ async function run() {
         tasrifFields = {
           madhi: t.madhi || verb,
           mudhari: t.mudhari,
-          masdar: t.masdar,
+          masdar: [t.masdar],
           masdarMim: t.masdarMim,
           faail: t.faail,
           mafuul: t.mafuul || '',

@@ -95,7 +95,8 @@ export async function POST(req: NextRequest) {
     );
 
     // ── Simpan ke Database ────────────────────────────────────────────────────
-    const newWord = await prisma.word.create({ data: wordData });
+    const createData = { ...wordData, masdar: [wordData.masdar] };
+    const newWord = await prisma.word.create({ data: createData as any });
 
     return NextResponse.json(
       {

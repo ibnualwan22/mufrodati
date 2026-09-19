@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
           OR regexp_replace("indonesian", ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
           OR regexp_replace("madhi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
           OR regexp_replace("mudhari",  ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
-          OR regexp_replace("masdar",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
+          OR regexp_replace(array_to_string("masdar", ' '),   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
           OR regexp_replace("masdarMim",${harakatPattern}, '', 'g') ILIKE ${searchPattern}
           OR regexp_replace("faail",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
           OR regexp_replace("mafuul",   ${harakatPattern}, '', 'g') ILIKE ${searchPattern}
@@ -114,14 +114,41 @@ export async function GET(req: NextRequest) {
 
     // ─── Deteksi Shighot: cek kolom mana yang exact-match setelah strip harakat ─
     let shighot_pencarian = "Akar Kata";
+    let artiKontekstual = word.indonesian; // default
+    
     for (const { col, shighot } of SHIGHOT_PRIORITY) {
       const dbVal = word[col];
       if (!dbVal) continue;
-      // Strip harakat dari nilai DB, bandingkan exact
-      const dbBersih = hapusHarakat(String(dbVal));
-      if (dbBersih === cleanQ) {
-        shighot_pencarian = shighot;
-        break;
+      
+      const checkAndMatch = (val: string, index: number = 0) => {
+        const dbBersih = hapusHarakat(val);
+        if (dbBersih === cleanQ) {
+           shighot_pencarian = shighot;
+           // Tarik Arti jika ada
+           const artiKey = `arti${col.charAt(0).toUpperCase() + col.slice(1)}`;
+           if (word[artiKey]) {
+             if (Array.isArray(word[artiKey])) {
+                artiKontekstual = word[artiKey][index] || word[artiKey][0] || word.indonesian;
+             } else {
+                artiKontekstual = word[artiKey];
+             }
+           }
+           return true;
+        }
+        return false;
+      };
+
+      if (Array.isArray(dbVal)) {
+        let matched = false;
+        for (let i = 0; i < dbVal.length; i++) {
+           if (checkAndMatch(dbVal[i], i)) {
+              matched = true;
+              break;
+           }
+        }
+        if (matched) break;
+      } else {
+        if (checkAndMatch(String(dbVal))) break;
       }
     }
 
@@ -142,7 +169,7 @@ export async function GET(req: NextRequest) {
         word.rootWord,
         word.indonesian,
         parsedBab,
-        word.masdar,
+        word.masdar[0] || "",
         { lazim: word.mafuul === null || word.mafuul === "" }
       );
     } catch (err) {
@@ -153,6 +180,7 @@ export async function GET(req: NextRequest) {
       found: true,
       word,
       shighot_pencarian,
+      artiKontekstual,
       ilal: ilalResult,
       tasrifDetail,
     });

@@ -22,6 +22,7 @@ export default function Home() {
   const [result, setResult] = useState<any>(null);
   const [searched, setSearched] = useState(false);
   const [shighot, setShighot] = useState<string | null>(null);
+  const [artiKontekstual, setArtiKontekstual] = useState<string | null>(null);
   const [ilalFromSearch, setIlalFromSearch] = useState<any>(null);
   const [tasrifDetail, setTasrifDetail] = useState<any>(null);
 
@@ -69,6 +70,7 @@ export default function Home() {
     setLoading(true);
     setSearched(true);
     setShighot(null);
+    setArtiKontekstual(null);
     setIlalFromSearch(null);
     setResult(null); // reset dulu agar ResultCard re-mount dengan props baru
     try {
@@ -77,6 +79,7 @@ export default function Home() {
       if (data.found && data.word) {
         setResult(data.word);
         setShighot(data.shighot_pencarian ?? null);
+        setArtiKontekstual(data.artiKontekstual ?? null);
         setIlalFromSearch(data.ilal ?? null);
         setTasrifDetail(data.tasrifDetail ?? null);
       } else {
@@ -97,6 +100,7 @@ export default function Home() {
     setLoading(true);
     setSearched(true);
     setShighot(null);
+    setArtiKontekstual(null);
     setIlalFromSearch(null);
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
@@ -104,6 +108,7 @@ export default function Home() {
       if (data.found && data.word) {
         setResult(data.word);
         setShighot(data.shighot_pencarian ?? null);
+        setArtiKontekstual(data.artiKontekstual ?? null);
         setIlalFromSearch(data.ilal ?? null);
         setTasrifDetail(data.tasrifDetail ?? null);
       } else {
@@ -519,6 +524,7 @@ export default function Home() {
             word={result}
             searchQuery={query}
             shighot={shighot}
+            artiKontekstual={artiKontekstual}
             ilalPrefetched={ilalFromSearch}
             tasrifDetail={tasrifDetail}
           />

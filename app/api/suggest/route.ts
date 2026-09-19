@@ -40,14 +40,14 @@ export async function GET(req: NextRequest) {
           WHEN regexp_replace("madhi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern} THEN 2
           WHEN regexp_replace("mudhari",  ${harakatPattern}, '', 'g') ILIKE ${searchPattern} THEN 3
           WHEN regexp_replace("indonesian", ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny} THEN 4
-          WHEN regexp_replace("masdar",   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny} THEN 5
+          WHEN regexp_replace(array_to_string("masdar", ' '),   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny} THEN 5
           ELSE 6
         END AS rank,
         CASE
           WHEN regexp_replace("rootWord", ${harakatPattern}, '', 'g') ILIKE ${searchPattern} THEN 'Akar Kata'
           WHEN regexp_replace("madhi",    ${harakatPattern}, '', 'g') ILIKE ${searchPattern} THEN 'Fi''il Madhi'
           WHEN regexp_replace("mudhari",  ${harakatPattern}, '', 'g') ILIKE ${searchPattern} THEN 'Fi''il Mudhari'''
-          WHEN regexp_replace("masdar",   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny} THEN 'Masdar'
+          WHEN regexp_replace(array_to_string("masdar", ' '),   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny} THEN 'Masdar'
           WHEN regexp_replace("indonesian", ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny} THEN 'Terjemahan'
           ELSE 'Shighot Lain'
         END AS kolom_cocok
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
         OR regexp_replace("indonesian", ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
         OR regexp_replace("madhi",    ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
         OR regexp_replace("mudhari",  ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
-        OR regexp_replace("masdar",   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
+        OR regexp_replace(array_to_string("masdar", ' '),   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
         OR regexp_replace("masdarMim",${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
         OR regexp_replace("faail",    ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}
         OR regexp_replace("mafuul",   ${harakatPattern}, '', 'g') ILIKE ${searchPatternAny}

@@ -12,7 +12,7 @@ type Word = {
   bina?: string | null;
   madhi: string;
   mudhari: string;
-  masdar: string;
+  masdar: string[];
   masdarMim?: string | null;
   faail: string;
   mafuul?: string | null;
@@ -34,12 +34,14 @@ export default function ResultCard({
   word,
   searchQuery,
   shighot,
+  artiKontekstual,
   ilalPrefetched,
   tasrifDetail,
 }: {
   word: Word;
   searchQuery: string;
   shighot?: string | null;
+  artiKontekstual?: string | null;
   ilalPrefetched?: any;
   tasrifDetail?: any;
 }) {
@@ -120,7 +122,20 @@ export default function ResultCard({
               fontFamily: "'Georgia', serif",
             }}
           >
-            {word.indonesian}
+            {(() => {
+              const text = artiKontekstual || word.indonesian;
+              if (!text || !text.includes(" / ")) return text;
+              return (
+                <ul style={{ padding: 0, margin: 0, listStyleType: "none", display: "flex", flexDirection: "column", gap: "2px" }}>
+                  {text.split(" / ").map((item, idx) => (
+                    <li key={idx} style={{ display: "flex", gap: "6px" }}>
+                      <span style={{ opacity: 0.6 }}>{idx + 1}.</span> 
+                      <span>{item.trim()}</span>
+                    </li>
+                  ))}
+                </ul>
+              );
+            })()}
           </div>
         </div>
 
@@ -640,12 +655,13 @@ function Row({
   value: string;
   isArabic?: boolean;
 }) {
+  const isMulti = value && value.includes(" / ");
   return (
     <div
       style={{
         display: "flex",
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: isMulti ? "flex-start" : "center",
         padding: "0.6rem 0",
       }}
     >
@@ -656,6 +672,7 @@ function Row({
           textTransform: "uppercase",
           color: "#5a5040",
           fontFamily: "'Georgia', serif",
+          paddingTop: isMulti ? "0.12rem" : 0,
         }}
       >
         {label}
@@ -677,7 +694,18 @@ function Row({
             }
         }
       >
-        {value}
+        {isMulti && !isArabic ? (
+          <ul style={{ padding: 0, margin: 0, listStyleType: "none", display: "flex", flexDirection: "column", gap: "4px" }}>
+            {value.split(" / ").map((item, idx) => (
+              <li key={idx}>
+                <span style={{ opacity: 0.5, fontSize: "0.8em", marginRight: "6px" }}>{idx + 1}.</span>
+                {item.trim()}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          value
+        )}
       </span>
     </div>
   );
