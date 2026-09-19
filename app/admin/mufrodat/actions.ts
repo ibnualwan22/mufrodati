@@ -46,7 +46,18 @@ export async function calculateShorofPreview(
   polaAlat: string = "mif'alun" // using safe default mapping
 ) {
   if (!akarKata || akarKata.length < 3) return null;
-  const babNumber = bab.replace(/\D/g, "") || "1";
+  
+  // Jika bab adalah wazan mazid/rubai, biarkan. Jika "Bab N", ambil angkanya.
+  const mazidWazans = [
+    "af'ala", "fa''ala", "faa'ala", "tafa''ala", "tafaa'ala", 
+    "ifta'ala", "infa'ala", "istaf'ala", "if'alla", "if'aalla", 
+    "if'aw'ala", "if'awwala",
+    "fa'lala", "tafa'lala", "if'anlala", "if'alalla"
+  ];
+  let parsedBab: string | number = bab;
+  if (!mazidWazans.includes(bab)) {
+    parsedBab = parseInt(bab.replace(/\D/g, "") || "1");
+  }
   
   // Mapping pola alat to proper Arabic if needed, or we just pass undefined
   let polaAlatEnum: "مِفْعَلٌ" | "مِفْعَالٌ" | "مِفْعَلَةٌ" | "Tidak Ada" | undefined = undefined;
@@ -57,7 +68,7 @@ export async function calculateShorofPreview(
     const detail = generateSemuaTasrifDetail(
       akarKata,
       indonesian,
-      parseInt(babNumber) as 1 | 2 | 3 | 4 | 5 | 6,
+      parsedBab as any,
       masdar,
       { polaAlat: polaAlatEnum, lazim }
     );

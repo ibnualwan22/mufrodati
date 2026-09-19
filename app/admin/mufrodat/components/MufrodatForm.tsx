@@ -222,13 +222,13 @@ export default function MufrodatForm({ initialData = null }: { initialData?: any
     }
   };
 
-  const isBabBesar = parseInt(formData.bab.replace(/\D/g, "") || "1") > 3;
+  const isBabBesar = !["Bab 1", "Bab 2", "Bab 3"].includes(formData.bab);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     
-    // Jika bab > 3, reset alaat ke null
+    // Jika bukan Bab 1-3, reset alaat ke null
     const submitData = { ...formData };
     if (isBabBesar) {
       submitData.polaAlat = "Tidak Ada";
@@ -303,12 +303,38 @@ export default function MufrodatForm({ initialData = null }: { initialData?: any
                 value={formData.bab}
                 onChange={handleChange}
               >
-                <option value="Bab 1">Bab 1 (فَعَلَ - يَفْعُلُ)</option>
-                <option value="Bab 2">Bab 2 (فَعَلَ - يَفْعِلُ)</option>
-                <option value="Bab 3">Bab 3 (فَعَلَ - يَفْعَلُ)</option>
-                <option value="Bab 4">Bab 4 (فَعِلَ - يَفْعَلُ)</option>
-                <option value="Bab 5">Bab 5 (فَعُلَ - يَفْعُلُ)</option>
-                <option value="Bab 6">Bab 6 (فَعِلَ - يَفْعِلُ)</option>
+                <optgroup label="Tsulatsi Mujarrod">
+                  <option value="Bab 1">Bab 1 (فَعَلَ - يَفْعُلُ)</option>
+                  <option value="Bab 2">Bab 2 (فَعَلَ - يَفْعِلُ)</option>
+                  <option value="Bab 3">Bab 3 (فَعَلَ - يَفْعَلُ)</option>
+                  <option value="Bab 4">Bab 4 (فَعِلَ - يَفْعَلُ)</option>
+                  <option value="Bab 5">Bab 5 (فَعُلَ - يَفْعُلُ)</option>
+                  <option value="Bab 6">Bab 6 (فَعِلَ - يَفْعِلُ)</option>
+                </optgroup>
+                <optgroup label="Tsulatsi Mazid (1 Huruf)">
+                  <option value="af'ala">Af'ala (أَفْعَلَ)</option>
+                  <option value="fa''ala">Fa''ala (فَعَّلَ)</option>
+                  <option value="faa'ala">Faa'ala (فَاعَلَ)</option>
+                </optgroup>
+                <optgroup label="Tsulatsi Mazid (2 Huruf)">
+                  <option value="tafa''ala">Tafa''ala (تَفَعَّلَ)</option>
+                  <option value="tafaa'ala">Tafaa'ala (تَفَاعَلَ)</option>
+                  <option value="ifta'ala">Ifta'ala (اِفْتَعَلَ)</option>
+                  <option value="infa'ala">Infa'ala (اِنْفَعَلَ)</option>
+                  <option value="if'alla">If'alla (اِفْعَلَّ)</option>
+                </optgroup>
+                <optgroup label="Tsulatsi Mazid (3 Huruf)">
+                  <option value="istaf'ala">Istaf'ala (اِسْتَفْعَلَ)</option>
+                  <option value="if'aalla">If'aalla (اِفْعَالَّ)</option>
+                  <option value="if'aw'ala">If'aw'ala (اِفْعَوْعَلَ)</option>
+                  <option value="if'awwala">If'awwala (اِفْعَوَّلَ)</option>
+                </optgroup>
+                <optgroup label="Ruba'i Mujarrod & Mazid">
+                  <option value="fa'lala">Fa'lala (فَعْلَلَ)</option>
+                  <option value="tafa'lala">Tafa'lala (تَفَعْلَلَ)</option>
+                  <option value="if'anlala">If'anlala (اِفْعَنْلَلَ)</option>
+                  <option value="if'alalla">If'alalla (اِفْعَلَلَّ)</option>
+                </optgroup>
               </select>
             </div>
 
