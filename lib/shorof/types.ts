@@ -100,6 +100,19 @@ export interface WordContext {
   bina: string;
 
   /**
+   * ID dhamir untuk tasrif lughawi (opsional).
+   * Contoh: "huwa", "ana", "antum", dll.
+   * Jika diisi, kaidah i'lal akan mempertimbangkan dhamir.
+   */
+  dhamir?: string;
+
+  /**
+   * True jika dhamir menempel langsung pada fi'il (تُ، تَ، نَ, dll).
+   * Memicu kaidah khusus: fakkul idghom (mudha'af), naql+hadzf (ajwaf).
+   */
+  muttashil?: boolean;
+
+  /**
    * Bentuk morfologis (Shighot) yang sedang dianalisis.
    * Menentukan wazan dan ziyadah yang digunakan.
    */

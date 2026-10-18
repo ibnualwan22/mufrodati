@@ -235,7 +235,11 @@ const kaidah3WawuYaJadiAlif: KaidahFn = (anatomi, ctx) => {
   // Contoh: صَوَمَ → صَامَ
   // ---------------------------------------------------------
   if (ctx.bina.startsWith("Ajwaf") && !anatomi.hurufZiyadahTengah) {
-    if (anatomi.harakatFa === H.FATHAH && (anatomi.ainFiil === H.WAWU || anatomi.ainFiil === H.YA)) {
+    // MUTTASHIL: jangan ubah jadi alif, serahkan ke kaidahAjwafMuttashil
+    // Contoh: قَوَلْتُ → قُلْتُ (bukan قَالَْتُ)
+    if (ctx.muttashil) {
+      // skip, ditangani kaidah khusus
+    } else if (anatomi.harakatFa === H.FATHAH && (anatomi.ainFiil === H.WAWU || anatomi.ainFiil === H.YA)) {
 
       const isMasdarAsli = ctx.shighot === "Masdar";
       const ainHidup = isHarakatHidup(anatomi.harakatAin);
@@ -369,6 +373,73 @@ const kaidah4Naql: KaidahFn = (anatomi, _ctx) => {
   return {
     diterapkan: true,
     pesan: `Kaidah 4 – Naql: Harakat '${harakatPindah}' dari 'Ain al-Fi'l (${hurufAsal}) dipindahkan ke Fa'.${pesanTambahan}`,
+  };
+};
+
+/**
+ * Kaidah Ajwaf Muttashil — Naql + Hadzf untuk dhamir muttashil
+ * ────────────────────────────────────────────────────────────────
+ * Untuk Ajwaf dengan dhamir muttashil (تُ، تَ، نَ...):
+ *   1. Naql: pindahkan harakat 'Ain ke Fa', sukunkan 'Ain
+ *   2. Hadzf: buang huruf illat (iltiqa' sakinain dengan lam yang sukun)
+ *   3. Fa' diberi harakat sesuai jenis illat: Dhammah (wawi) / Kasrah (ya'i)
+ *
+ * Contoh: قَوَلْتُ → قَوْلْتُ → قُلْتُ
+ * Contoh: بَيَعْتُ → بَيْعْتُ → بِعْتُ
+ */
+const kaidahAjwafMuttashil: KaidahFn = (anatomi, ctx) => {
+  if (!ctx.bina.startsWith("Ajwaf")) return { diterapkan: false, pesan: "" };
+  if (!ctx.muttashil) return { diterapkan: false, pesan: "" };
+
+  const ainIllat = anatomi.ainFiil === H.WAWU || anatomi.ainFiil === H.YA;
+  if (!ainIllat) return { diterapkan: false, pesan: "" };
+
+  // Harus dalam kondisi: fa' fathah, ain berharakat (belum di-naql)
+  if (anatomi.harakatFa !== H.FATHAH) return { diterapkan: false, pesan: "" };
+  if (!isHarakatHidup(anatomi.harakatAin)) return { diterapkan: false, pesan: "" };
+
+  const hurufAsal = anatomi.ainFiil;
+  const isWawi = hurufAsal === H.WAWU;
+
+  // Hadzf 'Ain + beri harakat pada Fa' sesuai jenis
+  anatomi.ainFiil = "";
+  anatomi.harakatAin = "";
+  anatomi.harakatFa = isWawi ? H.DHAMMAH : H.KASRAH;
+
+  return {
+    diterapkan: true,
+    pesan: `Kaidah Ajwaf Muttashil: 'Ain (${hurufAsal}) dibuang (iltiqa' sakinain), Fa' diberi ${isWawi ? "Dhammah" : "Kasrah"}.`,
+  };
+};
+
+/**
+ * Kaidah Naqish Hiya — Hazf Alif sebelum Ta' Sukun
+ * ────────────────────────────────────────────────────────────────
+ * Untuk Naqish dengan dhamir hiya (تْ):
+ *   Setelah wawu/ya → alif (kaidah 3), alif bertemu ta' sukun
+ *   → iltiqa' sakinain → alif dibuang.
+ *
+ * Contoh: دَعَوَ + تْ → دَعَا + تْ → دَعَتْ
+ */
+const kaidahNaqishHiya: KaidahFn = (anatomi, ctx) => {
+  if (!ctx.bina.startsWith("Naqish") && !ctx.bina.startsWith("Lafif")) {
+    return { diterapkan: false, pesan: "" };
+  }
+  if (ctx.dhamir !== "hiya") return { diterapkan: false, pesan: "" };
+
+  // Lam harus alif (hasil dari kaidah 3) dan suffix adalah ta' sukun
+  const lamAlif = anatomi.lamFiil === H.ALIF || anatomi.lamFiil === "ى";
+  const suffixTaSukun = anatomi.hurufZiyadahAkhir &&
+    anatomi.hurufZiyadahAkhir.includes("ت");
+
+  if (!lamAlif || !suffixTaSukun) return { diterapkan: false, pesan: "" };
+
+  anatomi.lamFiil = "";
+  anatomi.harakatLam = "";
+
+  return {
+    diterapkan: true,
+    pesan: `Kaidah Naqish Hiya: Alif (dari wawu/ya) dibuang sebelum Ta' sukun (iltiqa' sakinain).`,
   };
 };
 
@@ -717,6 +788,10 @@ const kaidah19MasdarAjwafWawi: KaidahFn = (anatomi, ctx) => {
 const kaidah2Idghom: KaidahFn = (anatomi, ctx) => {
   if (ctx.bina !== "Mudha'af") return { diterapkan: false, pesan: "" };
 
+  // FAKKUL IDGHOM: jika dhamir muttashil (تُ، تَ، نَ...), idghom DILEPAS
+  // Contoh: مَدَّ → مَدَدْتُ (tidak di-idghom)
+  if (ctx.muttashil) return { diterapkan: false, pesan: "" };
+
   // Syarat 1: 'Ain dan Lam hurufnya sama
   if (anatomi.ainFiil !== anatomi.lamFiil) return { diterapkan: false, pesan: "" };
 
@@ -1039,7 +1114,9 @@ const PIPELINE: KaidahFn[] = [
   kaidah1HamzahWashal,                 // Hamzah Washal Amr
   kaidahMahmuzFaAmrRasmHamzah,         // Mahmuz Fa' Amr: اُؤْمُرْ / اِئْسِرْ
   kaidah2Idghom,                       // Idghom Mudha'af
+  kaidahAjwafMuttashil,                 // Ajwaf + muttashil: naql+hadzf (sebelum kaidah 3)
   kaidah3WawuYaJadiAlif,               // Wawu/Ya → Alif (setelah Fathah)
+  kaidahNaqishHiya,                    // Naqish hiya: hazf alif sebelum ta' sukun
   kaidah4Naql,                         // Pindah harakat + sukunkan illat
   kaidah3bWawuYaSukunJadiMadd,         // Wawu/Ya sukun Ajwaf → Madd (hapus sukun eksplisit)
   kaidah5WawuYaJadiHamzah,             // Wawu/Ya → Hamzah (setelah Alif Zaidah)
@@ -1091,6 +1168,19 @@ function kaidahRasmHamzah(anatomi: AnatomiKata, _ctx: WordContext): { diterapkan
       anatomi.ainFiil = "\u0624"; // ؤ
       diterapkan = true;
       logPesan += "Rasm Hamzah: Hamzah 'Ain berdhammah ditulis di atas Wawu (ؤ). ";
+    } else if (anatomi.harakatAin === H.FATHAH || anatomi.harakatAin === H.SUKUN) {
+      // Hamzah mutawassithah berfathah/sukun setelah fathah/sukun → di atas Alif (أ)
+      // Contoh: يَسْأَلُ, سَأَلَ
+      // (Kaidah: harakat terkuat antara hamzah dan huruf sebelumnya menentukan kursi)
+      if (anatomi.ainFiil !== H.HAMZAH_ATAS) {
+        anatomi.ainFiil = H.HAMZAH_ATAS; // أ
+        diterapkan = true;
+        logPesan += "Rasm Hamzah: Hamzah 'Ain berfathah ditulis di atas Alif (أ). ";
+      }
+    } else if (anatomi.harakatAin === H.KASRAH) {
+      anatomi.ainFiil = H.HAMZAH_YA; // ئ
+      diterapkan = true;
+      logPesan += "Rasm Hamzah: Hamzah 'Ain berkasrah ditulis di atas Ya (ئ). ";
     }
   }
 
