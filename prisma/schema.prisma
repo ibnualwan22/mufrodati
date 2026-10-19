@@ -54,3 +54,65 @@ model Word {
 
   @@unique([madhi, bab])
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Workflow Data Sima'i: Qutrub → AI Enrichment → Verifikasi → Publish
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Alur:
+//   1. IMPORT    : Ekstrak dari Qutrub → status DRAFT (data mentah)
+//   2. ENRICH    : AI isi arti Indo, akar kata, wazan sima'i (batch) → AI_DONE
+//   3. VERIFIKASI: Manusia cek via /admin/verifikasi → VERIFIED / REJECTED
+//   4. PUBLISH   : VERIFIED → disalin ke Word → PUBLISHED
+//
+// Prinsip: Word hanya berisi data terverifikasi.
+//          SimaIImport adalah staging area — boleh kotor, boleh diulang.
+//
+model SimaIImport {
+  id          String   @id @default(cuid())
+  batchId     String   // ID batch, misal "2026-10-19-001"
+
+  // ── Data mentah dari Qutrub ──
+  qutrubRaw   Json     // Output mentah Qutrub (jangan diubah)
+
+  // ── Hasil AI enrichment (bisa diedit saat verifikasi) ──
+  rootWord    String?
+  indonesian  String?
+  bab         String?
+  bina        String?
+  transitive  String?
+  jenisFiil   String?
+  madhi       String?
+  mudhari     String?
+  masdar      String[]
+  masdarMim   String?
+  faail       String?
+  mafuul      String?
+  amr         String?
+  nahyi       String?
+  zamanMakan  String?
+  alaat       String?
+
+  // ── Metadata AI ──
+  aiModel     String?  // Model AI yang dipakai
+  aiConfidence Float?  // Skor kepercayaan AI (0-1)
+  aiNotes     String?  // Catatan AI (misal: "masdar tidak yakin")
+
+  // ── Workflow ──
+  status      String   @default("DRAFT")
+  // DRAFT → AI_DONE → VERIFIED → PUBLISHED
+  //                ↘ REJECTED
+
+  verifiedBy  String?
+  verifiedAt  DateTime?
+  verifierNotes String?
+  publishedAt DateTime?
+  publishedWordId String? // ID di tabel Word setelah publish
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([batchId])
+  @@index([status])
+  @@index([batchId, status])
+}
