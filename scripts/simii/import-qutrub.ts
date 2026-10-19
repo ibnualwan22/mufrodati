@@ -21,6 +21,7 @@ import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { execSync } from "child_process";
+import { konversiBabQutrub } from "../../lib/shorof/qutrubBabMap";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -29,7 +30,7 @@ const prisma = new PrismaClient({ adapter });
 interface QutrubEntry {
   verb: string;
   root: string;
-  bab: number;
+  bab: number | string;
   transitive: string; // 'م' = muta'addi, 'ل' = lazim, 'ك' = keduanya
   haraka: string;
 }
@@ -79,12 +80,21 @@ print(json.dumps(entries[${offset}:${offset}+${limit}]))
   let skipped = 0;
 
   for (const e of entries) {
+    // Konversi bab Qutrub → format web (otomatis)
+    const konversi = konversiBabQutrub(e.bab, e.verb);
+    if (!konversi) {
+      console.log(`  Skip (bab tidak dikenali): ${e.verb} bab=${e.bab}`);
+      skipped++;
+      continue;
+    }
+    const babWeb = konversi.babWeb;
+
     // Cek duplikat: sudah ada di SimaIImport atau Word?
     const existingImport = await prisma.simaIImport.findFirst({
-      where: { madhi: e.verb, bab: `Bab ${e.bab}` },
+      where: { madhi: e.verb, bab: babWeb },
     });
     const existingWord = await prisma.word.findFirst({
-      where: { madhi: e.verb, bab: `Bab ${e.bab}` },
+      where: { madhi: e.verb, bab: babWeb },
     });
 
     if (existingImport || existingWord) {
@@ -98,7 +108,8 @@ print(json.dumps(entries[${offset}:${offset}+${limit}]))
         qutrubRaw: e as any,
         madhi: e.verb,
         rootWord: e.root,
-        bab: `Bab ${e.bab}`,
+        bab: babWeb,
+        jenisFiil: konversi.jenisFiil,
         transitive: transitiveLabel(e.transitive),
         status: "DRAFT",
       },
