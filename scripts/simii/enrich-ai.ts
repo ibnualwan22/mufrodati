@@ -45,6 +45,9 @@ interface EnrichResult {
   alaat: string | null;
   bina: string;
   jenisFiil: string;
+  babTerverifikasi: string | null;
+  akarTerverifikasi: string | null;
+  perbaikan: string | null;
   aiConfidence: number;
   aiNotes: string | null;
 }
@@ -80,19 +83,34 @@ function buatPrompt(entry: {
   bab: string | null;
   transitive: string | null;
 }): string {
-  return `Rizal, tolong lengkapi data kata kerja Arab berikut untuk database kamus.
+  return `Rizal, tolong proses data kata kerja Arab berikut untuk database kamus.
 
-Data dari Qutrub:
+Data awal dari Qutrub (PERLU DIVERIFIKASI DAN DIPERBAIKI):
 - Fi'il madhi: ${entry.madhi}
-- Akar kata: ${entry.rootWord}
-- Bab: ${entry.bab}
+- Akar kata (klaim Qutrub): ${entry.rootWord}
+- Bab (klaim Qutrub): ${entry.bab}
 - Transitivitas: ${entry.transitive}
+
+PERAN ANDA:
+1. VERIFIKASI: Cek apakah akar kata, bab, dan transitivitas dari Qutrub sudah benar
+2. PERBAIKI: Jika ada yang salah, betulkan dengan yang benar
+3. LENGKAPI: Isi semua field yang kosong
+
+ATURAN SHOROF YANG HARUS DIIKUTI:
+- Akar kata: 3 huruf (tsulatsi) atau 4 huruf (ruba'i). Perhatikan huruf ilat!
+  * قَالَ → ق و ل (bukan قل!)
+  * بَاعَ → ب ي ع (bukan بع!)
+  * Huruf ilat: ا (alif), و (wawu), ي (ya) — alif selalu berasal dari wawu atau ya
+- Bab mujarrad: 1-6 (untuk tsulatsi). Tentukan dari harakat 'ain fi'il madhi vs mudhari'
+- Bab mazid: pakai nama wazan (af'ala, fa''ala, faa'ala, tafa''ala, tafaa'ala, ifta'ala, infa'ala, istaf'ala)
+- Bina': Shahih Salim, Mahmuz, Mudha'af, Mitsal, Ajwaf, Naqish, Lafif
+- Kaidah i'lal: terapkan dengan benar (naql, hadzf, ibdal, idghom)
 
 Tolong berikan dalam format JSON (bungkus dengan \`\`\`json):
 \`\`\`json
 {
   "indonesian": "arti dalam bahasa Indonesia yang natural",
-  "mudhari": "bentuk mudhari' dengan harakat",
+  "mudhari": "bentuk mudhari' dengan harakat lengkap",
   "masdar": ["masdar1", "masdar2"],
   "faail": "isim fa'il dengan harakat",
   "mafuul": "isim maf'ul atau null jika lazim",
@@ -100,14 +118,17 @@ Tolong berikan dalam format JSON (bungkus dengan \`\`\`json):
   "nahyi": "fi'il nahyi dengan harakat",
   "zamanMakan": "isim zaman/makan",
   "alaat": "isim alat atau null",
-  "bina": "jenis bina' (misal: Shahih Salim, Ajwaf Wawi, Naqish Ya'i, dll)",
-  "jenisFiil": "Tsulatsi Mujarrod / Tsulatsi Mazid / Ruba'i Mujarrod",
+  "bina": "jenis bina' yang benar",
+  "jenisFiil": "Tsulatsi Mujarrod / Tsulatsi Mazid / Ruba'i Mujarrod / Ruba'i Mazid",
+  "babTerverifikasi": "bab yang sudah diverifikasi/diperbaiki (contoh: Bab 1 / af'ala)",
+  "akarTerverifikasi": "akar kata yang sudah diverifikasi (contoh: ق و ل)",
+  "perbaikan": "jelaskan apa yang diperbaiki dari data Qutrub, atau null jika sudah benar",
   "aiConfidence": 0.95,
-  "aiNotes": "catatan jika ada keraguan, atau null"
+  "aiNotes": "catatan jika ada keraguan"
 }
 \`\`\`
 
-Penting: perhatikan huruf ilat (wawu, ya, alif) dalam menentukan akar kata dan bina'. Berikan confidence score yang jujur.`;
+PENTING: Jika data Qutrub salah, JANGAN ikuti. Berikan yang benar dan jelaskan di field "perbaikan".`;
 }
 
 function parseJsonDariRespons(isi: string): EnrichResult | null {
@@ -201,8 +222,13 @@ async function main() {
           alaat: hasil.alaat,
           bina: hasil.bina,
           jenisFiil: hasil.jenisFiil,
+          // Jika Rizal memperbaiki bab/akar, pakai versi terverifikasi
+          bab: hasil.babTerverifikasi || draft.bab,
+          rootWord: hasil.akarTerverifikasi || draft.rootWord,
           aiConfidence: hasil.aiConfidence,
-          aiNotes: hasil.aiNotes,
+          aiNotes: hasil.perbaikan
+            ? `[PERBAIKAN] ${hasil.perbaikan}${hasil.aiNotes ? ` | ${hasil.aiNotes}` : ""}`
+            : hasil.aiNotes,
           aiModel: "rizal-batagor",
           status: "AI_DONE",
         },
